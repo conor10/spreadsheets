@@ -17,46 +17,44 @@ object ExcelReader {
     loadSheet(fileName, 0, 0, 0)
 
   def loadSheet(fileName: String, sheetIdx: Int, startRowIdx: Int, startColIdx: Int): ResultSet = {
-    val workbook = loadWorkbook(fileName)
+    using(loadWorkbook(fileName)) {
+      workbook =>
+        val evaluator = workbook.getCreationHelper().createFormulaEvaluator()
 
-    try {
-      val evaluator = workbook.getCreationHelper().createFormulaEvaluator()
+        val sheet = workbook.getSheetAt(sheetIdx)
 
-      val sheet = workbook.getSheetAt(sheetIdx)
-
-      if (sheet.getPhysicalNumberOfRows > 0) {
-        val endRowIdx = sheet.getLastRowNum + 1
-        val endColIdx = sheet.getRow(startRowIdx).getLastCellNum
-        val ref = TableRef(evaluator, startRowIdx, endRowIdx, startColIdx, endColIdx)
-        extract(sheet, ref)
-      }
-      else ResultSet.empty
-    }
-    finally {
-      workbook.close()
+        if (sheet.getPhysicalNumberOfRows > 0) {
+          val endRowIdx = sheet.getLastRowNum + 1
+          val endColIdx = sheet.getRow(startRowIdx).getLastCellNum
+          val ref = TableRef(evaluator, startRowIdx, endRowIdx, startColIdx, endColIdx)
+          extract(sheet, ref)
+        }
+        else ResultSet.empty
     }
   }
 
   def loadNamedRange(fileName: String, namedRange: String): ResultSet = {
-    val workbook = loadWorkbook(fileName)
-    val evaluator = workbook.getCreationHelper().createFormulaEvaluator()
+    using(loadWorkbook(fileName)) {
+      workbook =>
+        val evaluator = workbook.getCreationHelper().createFormulaEvaluator()
 
-    val name = workbook.getName(namedRange)
-    if (name == null)
-      throw new IllegalArgumentException(s"Named range: $namedRange does not exist")
+        val name = workbook.getName(namedRange)
+        if (name == null)
+          throw new IllegalArgumentException(s"Named range: $namedRange does not exist")
 
-    val areaReference = new AreaReference(name.getRefersToFormula)
-    val firstCell = areaReference.getFirstCell
-    val lastCell = areaReference.getLastCell
+        val areaReference = new AreaReference(name.getRefersToFormula)
+        val firstCell = areaReference.getFirstCell
+        val lastCell = areaReference.getLastCell
 
-    val sheet = workbook.getSheet(firstCell.getSheetName)
+        val sheet = workbook.getSheet(firstCell.getSheetName)
 
-    // Header rows will be one row above named range
-    // As named ranges are typically used as lookup tables, hence the headers are not included
-    val tableRef = TableRef(evaluator,
-      firstCell.getRow - 1, lastCell.getRow + 1, firstCell.getCol, lastCell.getCol + 1)
+        // Header rows will be one row above named range
+        // As named ranges are typically used as lookup tables, hence the headers are not included
+        val tableRef = TableRef(evaluator,
+          firstCell.getRow - 1, lastCell.getRow + 1, firstCell.getCol, lastCell.getCol + 1)
 
-    extract(sheet, tableRef)
+        extract(sheet, tableRef)
+    }
   }
 
   def loadWorkbook(fileName: String): Workbook = {
@@ -72,7 +70,6 @@ object ExcelReader {
   }
 
   def loadHeaders(sheet: Sheet, ref: TableRef): Map[String, Int] = {
-
     val numMergedRegions = sheet.getNumMergedRegions
     val mergedRegions = for (i <- 0 until numMergedRegions) yield sheet.getMergedRegion(i)
 
@@ -155,7 +152,19 @@ object ExcelReader {
       case Cell.CELL_TYPE_ERROR => null
     }
   }
+
+  // Lifted from p386 of the Scala Cookbook
+  def using[A <: { def close(): Unit }, B](resource: A)(f: A => B): B = {
+    try {
+      f(resource)
+    }
+    finally {
+      resource.close()
+    }
+  }
 }
+
+
 
 case class TableRef(evaluator: FormulaEvaluator, startRowIdx: Int, endRowIdx: Int,
                     startColIdx: Int, endColIdx: Int)

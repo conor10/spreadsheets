@@ -25,20 +25,25 @@ class CorrelationSpec extends FlatSpec with Matchers {
   val audBitcoinRet = sheet("Cleaned AUD-Bitcoin Returns").map(_.get.asInstanceOf[Double])
   val asxSpi200Ret = sheet("Cleaned ASX SPI 200 Returns").map(_.get.asInstanceOf[Double])
 
-//  val audBitcoinRet = calcReturns(source1.priceRef, rs1)
-//  val asxSpi200Ret = calcReturns(source2.priceRef, rs2)
-
   def fromSheet(name: String): Any = sheet(name)(0).getOrElse(Double.NaN)
 
   behavior of "Correlation"
 
-  // TODO: Clean up usage of map functions
   it should "determine the returns for AUD-BITCOIN prices" in {
     calcReturns(source1.priceRef, rs1).map(x => Option(x)) should equal (rs1("Return").toList)
   }
 
   it should "determine the returns for ASX SPI 200 futures index prices" in {
     calcReturns(source2.priceRef, rs2).map(x => Option(x)) should equal (rs2("Return").toList)
+  }
+
+  it should "merge the returns successfully" in {
+    val audBitcoin = calcReturns(source1.priceRef, rs1)
+    val asxSpi200 = calcReturns(source2.priceRef, rs2)
+    val expected = (audBitcoinRet zip asxSpi200Ret)
+
+    val result = merge(source1.dateRef, source2.dateRef, (rs1, audBitcoin), (rs2, asxSpi200))
+    result should equal (expected)
   }
 
   it should "determine the mean for AUD Bitcoin returns" in {
