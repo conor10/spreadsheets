@@ -165,8 +165,8 @@ object ExcelReader {
 }
 
 
-case class TableRef(evaluator: FormulaEvaluator, startRowIdx: Int, endRowIdx: Int,
-                    startColIdx: Int, endColIdx: Int)
+case class TableRef(evaluator: FormulaEvaluator, startRowIdx: Int,
+                    endRowIdx: Int, startColIdx: Int, endColIdx: Int)
 
 
 case class ResultSet(headers: Map[String, Int], values: IndexedSeq[IndexedSeq[Option[Any]]])

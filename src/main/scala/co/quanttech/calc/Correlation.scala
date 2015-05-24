@@ -72,8 +72,8 @@ object Runner extends App {
 }
 
 object Sources {
-  lazy val audBitcoin = ExcelReader.loadNamedRange(_: String, "aud_bitcoin")
-  lazy val asxSpi200 = ExcelReader.loadNamedRange(_: String, "asx_spi200")
+  val audBitcoin = ExcelReader.loadNamedRange(_: String, "aud_bitcoin")
+  val asxSpi200 = ExcelReader.loadNamedRange(_: String, "asx_spi200")
 }
 
 
