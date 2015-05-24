@@ -22,15 +22,13 @@ object Correlation {
   }
 
   def calcReturns(attr: String, rs: ResultSet): List[Double] = {
-    val result =
-      for {
-        (entry, idx) <- rs.zipWithIndex
-        if idx != 0
-        currPrice = entry(attr).getOrElse(Double.NaN).asInstanceOf[Double]
-        prevPrice = rs(idx - 1)(attr).getOrElse(Double.NaN).asInstanceOf[Double]
-      }
-      yield (currPrice - prevPrice) / prevPrice
-    0.0 :: result.toList
+    val prices = rs.map(_(attr)).toList
+
+    val ret = (prices.tail zip prices.init).map {
+      case (x: Option[Double], y: Option[Double]) => (x.get - y.get) / y.get
+    }
+
+    0 :: ret
   }
 
   def calcCorrelation(returns: Iterable[(Double, Double)]): Double = {
@@ -74,8 +72,8 @@ object Runner extends App {
 }
 
 object Sources {
-  val audBitcoin = ExcelReader.loadNamedRange(_: String, "aud_bitcoin")
-  val asxSpi200 = ExcelReader.loadNamedRange(_: String, "asx_spi200")
+  lazy val audBitcoin = ExcelReader.loadNamedRange(_: String, "aud_bitcoin")
+  lazy val asxSpi200 = ExcelReader.loadNamedRange(_: String, "asx_spi200")
 }
 
 
