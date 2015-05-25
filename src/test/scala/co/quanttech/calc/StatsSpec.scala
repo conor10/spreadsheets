@@ -13,6 +13,10 @@ class StatsSpec extends FlatSpec with Matchers {
 
   behavior of "Stats"
 
+  it should "calculate the returns of a data series" in {
+    returns(series1) should equal (List(0.0, -0.3333333333333333, 1.0, 0.25, 0.2))
+  }
+
   it should "calculate the mean of a data series" in {
     mean(series1) should equal (4.0)
   }

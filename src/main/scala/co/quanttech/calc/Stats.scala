@@ -4,6 +4,11 @@ package co.quanttech.calc
  * Statistical functions library.
  */
 object Stats {
+  def returns(xs: List[Double]): List[Double] =
+    0 :: (xs.tail zip xs.init).map {
+      case (x, y) => (x - y) / y
+    }
+
   def mean(x: Iterable[Double]): Double = x.sum / x.size
 
   def stdDev(x: Iterable[Double]): Double = stdDev(x, mean(x))

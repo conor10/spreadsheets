@@ -79,29 +79,33 @@ object ExcelReader {
       if (cellRange.isEmpty) read(cell, ref.evaluator)
       else {
         val range = cellRange.get
-        val cells = for {
-          rowIdx <- range.getFirstRow to range.getLastRow
-          row = sheet.getRow(rowIdx)
-          cellIdx <- range.getFirstColumn to range.getLastColumn
-          cell = row.getCell(cellIdx)
-        } yield read(cell, ref.evaluator)
+        val cells =
+          for {
+            rowIdx <- range.getFirstRow to range.getLastRow
+            row = sheet.getRow(rowIdx)
+            cellIdx <- range.getFirstColumn to range.getLastColumn
+            cell = row.getCell(cellIdx)
+          }
+          yield read(cell, ref.evaluator)
         cells.flatten.headOption
       }
     }
 
-    def processRow(rowIdx: Int): IndexedSeq[Option[Any]] = {
+    def processRow(rowIdx: Int): List[Option[Any]] = {
       val row = sheet.getRow(rowIdx)
 
-      for (cellIdx <- ref.startColIdx until ref.endColIdx)
-      yield getMergedCellValue(row.getCell(cellIdx, Row.CREATE_NULL_AS_BLANK))
+      val values =
+        for (cellIdx <- ref.startColIdx until ref.endColIdx)
+        yield getMergedCellValue(row.getCell(cellIdx, Row.CREATE_NULL_AS_BLANK))
+      values.toList
     }
 
-    def getHeaderString(headers: IndexedSeq[Option[Any]]): IndexedSeq[(String, Int)] =
+    def getHeaderString(headers: List[Option[Any]]): List[(String, Int)] =
       for ((entry, idx) <- headers.zipWithIndex)
       yield (entry.getOrElse("Unknown-" + idx).toString, idx)
 
-    def getDualHeaderString(headers: IndexedSeq[(Option[Any], Option[Any])]):
-      IndexedSeq[(String, Int)] =
+    def getDualHeaderString(headers: List[(Option[Any], Option[Any])]):
+      List[(String, Int)] =
       for (((entry1, entry2), idx) <- headers.zipWithIndex) yield ({
         val prefix = if (entry1.isDefined) entry1.get.toString() + " " else ""
         prefix + entry2.getOrElse("Unknown-" + idx).toString
@@ -118,14 +122,18 @@ object ExcelReader {
     else getHeaderString(headers).toMap
   }
 
-  def loadValues(sheet: Sheet, ref: TableRef): IndexedSeq[IndexedSeq[Option[Any]]] = {
-    for (rowIdx <- ref.startRowIdx until ref.endRowIdx;
+  def loadValues(sheet: Sheet, ref: TableRef): List[List[Option[Any]]] = {
+    val rows =
+      for (rowIdx <- ref.startRowIdx until ref.endRowIdx;
          row = sheet.getRow(rowIdx))
-    yield {
-      for (cellIdx <- ref.startColIdx until ref.endColIdx;
-           cell = row.getCell(cellIdx, Row.RETURN_NULL_AND_BLANK))
-      yield read(cell, ref.evaluator)
-    }
+      yield {
+        val cells =
+          for (cellIdx <- ref.startColIdx until ref.endColIdx;
+             cell = row.getCell(cellIdx, Row.RETURN_NULL_AND_BLANK))
+          yield read(cell, ref.evaluator)
+        cells.toList
+      }
+    rows.toList
   }
 
   private def read(cell: Cell, evaluator: FormulaEvaluator): Option[Any] = {
@@ -153,13 +161,13 @@ object ExcelReader {
     }
   }
 
-  // Lifted from p386 of the Scala Cookbook
+  // Adapted from p386 of the Scala Cookbook
   def using[A <: { def close(): Unit }, B](resource: A)(f: A => B): B = {
     try {
       f(resource)
     }
     finally {
-      resource.close()
+      if (resource != null) resource.close()
     }
   }
 }
@@ -169,26 +177,26 @@ case class TableRef(evaluator: FormulaEvaluator, startRowIdx: Int,
                     endRowIdx: Int, startColIdx: Int, endColIdx: Int)
 
 
-case class ResultSet(headers: Map[String, Int], values: IndexedSeq[IndexedSeq[Option[Any]]])
+case class ResultSet(headers: Map[String, Int], values: List[List[Option[Any]]])
   extends Iterable[Entry] {
 
   override def iterator: Iterator[Entry] =
     values.iterator.map(entry => Entry(headers, entry))
 
-  def apply(header: String): IndexedSeq[Option[Any]] = {
+  def apply(header: String): List[Option[Any]] = {
     if (headers.contains(header)) values.map(_(headers(header)))
-    else IndexedSeq[Option[Any]]()
+    else List[Option[Any]]()
   }
 
   def apply(idx: Int): Entry = Entry(headers, values(idx))
 }
 
 object ResultSet {
-  val empty = ResultSet(Map.empty, IndexedSeq(IndexedSeq(None)))
+  val empty = ResultSet(Map.empty, List(List(None)))
 }
 
 
-case class Entry(private val headers: Map[String, Int], values: IndexedSeq[Option[Any]])
+case class Entry(private val headers: Map[String, Int], values: List[Option[Any]])
   extends Iterable[Option[Any]] {
 
   override def iterator = values.iterator

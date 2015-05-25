@@ -11,16 +11,16 @@ import org.scalatest.{FlatSpec, Matchers}
 class CorrelationSpec extends FlatSpec with Matchers {
   val fileName = "src/test/resources/Correlations.xlsx"
 
-  val audBitcoin = ExcelReader.loadNamedRange(_: String, "aud_bitcoin_with_returns")
-  val asxSpi200 = ExcelReader.loadNamedRange(_: String, "asx_spi200_with_returns")
-  val calculations = ExcelReader.loadNamedRange(_: String, "calculations")
+  val audBitcoin = () => ExcelReader.loadNamedRange(fileName, "aud_bitcoin_with_returns")
+  val asxSpi200 = () => ExcelReader.loadNamedRange(fileName, "asx_spi200_with_returns")
 
   val source1 = Source(audBitcoin, "24h Average", "Date")
   val source2 = Source(asxSpi200, "Previous Settlement", "Date")
 
-  val rs1 = source1.load(fileName)
-  val rs2 = source2.load(fileName)
-  val sheet = calculations(fileName)
+  val rs1 = source1.load
+  val rs2 = source2.load
+
+  val sheet = ExcelReader.loadNamedRange(fileName, "calculations")
 
   val audBitcoinRet = sheet("Cleaned AUD-Bitcoin Returns").map(_.get.asInstanceOf[Double])
   val asxSpi200Ret = sheet("Cleaned ASX SPI 200 Returns").map(_.get.asInstanceOf[Double])
@@ -30,11 +30,11 @@ class CorrelationSpec extends FlatSpec with Matchers {
   behavior of "Correlation"
 
   it should "determine the returns for AUD-BITCOIN prices" in {
-    calcReturns(source1.priceRef, rs1).map(x => Option(x)) should equal (rs1("Return").toList)
+    calcReturns(source1.priceRef, rs1).map(x => Option(x)) should equal (rs1("Return"))
   }
 
   it should "determine the returns for ASX SPI 200 futures index prices" in {
-    calcReturns(source2.priceRef, rs2).map(x => Option(x)) should equal (rs2("Return").toList)
+    calcReturns(source2.priceRef, rs2).map(x => Option(x)) should equal (rs2("Return"))
   }
 
   it should "merge the returns successfully" in {
@@ -69,5 +69,4 @@ class CorrelationSpec extends FlatSpec with Matchers {
   it should "determine the correlation of the two price series" in {
     correlation(audBitcoinRet, asxSpi200Ret) should equal (fromSheet("Correlation"))
   }
-
 }

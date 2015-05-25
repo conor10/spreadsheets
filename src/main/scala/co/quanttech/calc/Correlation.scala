@@ -9,26 +9,22 @@ import co.quanttech.excel.{ResultSet, ExcelReader}
  */
 object Correlation {
 
-  def run(s1: Source, s2: Source, fileName: String): Double = {
-    val rs1 = s1.load(fileName)
-    val rs2 = s2.load(fileName)
+  def run(s1: Source, s2: Source): Double = {
+    val rs1 = s1.load
+    val rs2 = s2.load
 
     val s1Returns = calcReturns(s1.priceRef, rs1)
     val s2Returns = calcReturns(s2.priceRef, rs2)
 
-    val mergedRet = merge(s1.dateRef, s2.dateRef, (rs1, s1Returns), (rs2, s2Returns))
+    val mergedReturns = merge(s1.dateRef, s2.dateRef, (rs1, s1Returns), (rs2, s2Returns))
 
-    calcCorrelation(mergedRet)
+    calcCorrelation(mergedReturns)
   }
 
   def calcReturns(attr: String, rs: ResultSet): List[Double] = {
-    val prices = rs.map(_(attr)).toList
+    val prices = rs.map(_(attr).get.asInstanceOf[Double]).toList
 
-    val ret = (prices.tail zip prices.init).map {
-      case (x: Option[Double], y: Option[Double]) => (x.get - y.get) / y.get
-    }
-
-    0 :: ret
+    Stats.returns(prices)
   }
 
   def calcCorrelation(returns: Iterable[(Double, Double)]): Double = {
@@ -60,21 +56,10 @@ object Correlation {
   }
 }
 
-case class Source(source: String => ResultSet, priceRef: String, dateRef: String) {
-  def load(sourceFile: String): ResultSet = source(sourceFile)
+case class Source(source: () => ResultSet, priceRef: String, dateRef: String) {
+  lazy val load = source()
 }
 
-object Runner extends App {
-  val source1 = Source(Sources.audBitcoin, "24h Average", "Date")
-  val source2 = Source(Sources.asxSpi200, "Previous Settlement", "Date")
-
-  Correlation.run(source1, source2, "src/test/resources/Correlations.xlsx")
-}
-
-object Sources {
-  val audBitcoin = ExcelReader.loadNamedRange(_: String, "aud_bitcoin")
-  val asxSpi200 = ExcelReader.loadNamedRange(_: String, "asx_spi200")
-}
 
 
 
